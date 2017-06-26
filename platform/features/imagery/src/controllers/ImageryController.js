@@ -57,6 +57,11 @@ define(
 
             // Unsubscribe when the plot is destroyed
             this.$scope.$on("$destroy", this.stopListening);
+
+            openmct.time.on('bounds', function callback(newBounds, tick) {
+                this.$scope.images = [];
+                this.requestHistory(newBounds);
+            }.bind(this));
         }
 
         ImageryController.prototype.subscribe = function (domainObject) {
@@ -77,13 +82,17 @@ define(
                         .getValueFormatter(metadata.valuesForHints(['image'])[0]);
                     this.unsubscribe = this.openmct.telemetry
                         .subscribe(this.domainObject, this.updateValues);
-                    this.openmct.telemetry
-                        .request(this.domainObject, this.openmct.time.bounds())
-                        .then(function (values) {
-                            values.forEach(function (datum) {
-                                this.updateValues(datum);
-                            }.bind(this));
-                        }.bind(this));
+                    this.requestHistory(this.openmct.time.bounds());
+                }.bind(this));
+        };
+
+        ImageryController.prototype.requestHistory = function (timeBounds) {
+            this.openmct.telemetry
+                .request(this.domainObject, timeBounds)
+                .then(function (values) {
+                    values.forEach(function (datum) {
+                        this.updateValues(datum);
+                    }.bind(this));
                 }.bind(this));
         };
 
@@ -96,7 +105,7 @@ define(
 
         // Update displayable values to reflect latest image telemetry
         ImageryController.prototype.updateValues = function (datum) {
-            // Image hitory should be updated even if the Imagery is paused
+            // Image history should be updated even if the Imagery is paused
             datum.utc = this.timeFormat.format(datum);
             this.$scope.images.push(datum);
 
