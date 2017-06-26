@@ -46,6 +46,7 @@ define(
                 brightness: 100,
                 contrast: 100
             };
+            this.$scope.images = [];
 
             this.subscribe = this.subscribe.bind(this);
             this.stopListening = this.stopListening.bind(this);
@@ -77,12 +78,11 @@ define(
                     this.unsubscribe = this.openmct.telemetry
                         .subscribe(this.domainObject, this.updateValues);
                     this.openmct.telemetry
-                        .request(this.domainObject, {
-                            strategy: 'latest',
-                            size: 1
-                        })
+                        .request(this.domainObject, this.openmct.time.bounds())
                         .then(function (values) {
-                            this.updateValues(values[0]);
+                            values.forEach(function (datum) {
+                                this.updateValues(datum);
+                            }.bind(this));
                         }.bind(this));
                 }.bind(this));
         };
@@ -96,6 +96,10 @@ define(
 
         // Update displayable values to reflect latest image telemetry
         ImageryController.prototype.updateValues = function (datum) {
+            // Image hitory should be updated even if the Imagery is paused
+            datum.utc = this.timeFormat.format(datum);
+            this.$scope.images.push(datum);
+
             if (this.isPaused) {
                 this.nextDatum = datum;
                 return;
