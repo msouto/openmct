@@ -86,7 +86,6 @@ define(
                         .getValueFormatter(metadata.valuesForHints(['image'])[0]);
                     this.unsubscribe = this.openmct.telemetry
                         .subscribe(this.domainObject, this.updateValues);
-<<<<<<< f5e4618b203dd499986e7aca2a98bfdab8a87ed6
                     this.requestHistory(this.openmct.time.bounds());
                 }.bind(this));
         };
@@ -98,15 +97,6 @@ define(
                     values.forEach(function (datum) {
                         this.updateValues(datum);
                     }.bind(this));
-=======
-                    this.openmct.telemetry
-                        .request(this.domainObject, this.openmct.time.bounds())
-                        .then(function (values) {
-                            values.forEach(function (datum) {
-                                this.updateValues(datum);
-                            }.bind(this));
-                        }.bind(this));
->>>>>>> Integrated historical imagery functionality with ImageryController
                 }.bind(this));
         };
 
@@ -119,11 +109,7 @@ define(
 
         // Update displayable values to reflect latest image telemetry
         ImageryController.prototype.updateValues = function (datum) {
-<<<<<<< f5e4618b203dd499986e7aca2a98bfdab8a87ed6
-            // Image history should be updated even if the Imagery is paused
-=======
-            // Image hitory should be updated even if the Imagery is paused
->>>>>>> Integrated historical imagery functionality with ImageryController
+            // Image history should be updated even if imagery is paused
             datum.utc = this.timeFormat.format(datum);
             this.$scope.images.push(datum);
 
