@@ -59,8 +59,12 @@ define(
             this.$scope.$on("$destroy", this.stopListening);
 
             openmct.time.on('bounds', function callback(newBounds, tick) {
-                this.$scope.images = [];
-                this.requestHistory(newBounds);
+                // Only request new historical data if bound change was
+                // not automatic
+                if (!tick) {
+                    this.$scope.images = [];
+                    this.requestHistory(newBounds);
+                }
             }.bind(this));
         }
 
@@ -87,9 +91,9 @@ define(
                 }.bind(this));
         };
 
-        ImageryController.prototype.requestHistory = function (timeBounds) {
+        ImageryController.prototype.requestHistory = function (bounds) {
             this.openmct.telemetry
-                .request(this.domainObject, timeBounds)
+                .request(this.domainObject, bounds)
                 .then(function (values) {
                     values.forEach(function (datum) {
                         this.updateValues(datum);
