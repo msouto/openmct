@@ -85,7 +85,6 @@ define(
                         .getValueFormatter(metadata.valuesForHints(['image'])[0]);
                     this.unsubscribe = this.openmct.telemetry
                         .subscribe(this.domainObject, this.updateValues);
-                    this.requestHistory(this.openmct.time.bounds());
                     this.openmct.telemetry
                         .request(this.domainObject, {
                             strategy: 'latest',
@@ -94,6 +93,7 @@ define(
                         .then(function (values) {
                             this.updateValues(values[0]);
                         }.bind(this));
+                    this.requestHistory(this.openmct.time.bounds());
                 }.bind(this));
         };
 
