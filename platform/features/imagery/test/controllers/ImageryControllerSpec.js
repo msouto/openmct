@@ -68,6 +68,7 @@ define(
                 openmct.time.timeSystem.andReturn({
                     key: 'testKey'
                 });
+                openmct.time.on = jasmine.createSpy('on');
                 $scope.domainObject = oldDomainObject;
                 openmct.objects.get.andReturn(Promise.resolve(newDomainObject));
                 openmct.telemetry.getMetadata.andReturn(metadata);
@@ -162,6 +163,13 @@ define(
                     expect(openmct.telemetry.subscribe).toHaveBeenCalledWith(
                         newDomainObject,
                         jasmine.any(Function)
+                    );
+                });
+
+                it("requests telemetry", function () {
+                    expect(openmct.telemetry.request).toHaveBeenCalledWith(
+                        newDomainObject,
+                        jasmine.any(Object)
                     );
                 });
 
