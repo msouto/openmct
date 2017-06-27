@@ -86,6 +86,7 @@ define(
                         .getValueFormatter(metadata.valuesForHints(['image'])[0]);
                     this.unsubscribe = this.openmct.telemetry
                         .subscribe(this.domainObject, this.updateValues);
+                    this.requestHistory(this.openmct.time.bounds());
                     this.openmct.telemetry
                         .request(this.domainObject, {
                             strategy: 'latest',
@@ -93,15 +94,21 @@ define(
                         })
                         .then(function (values) {
                             this.updateValues(values[0]);
+                            console.log("LATEST IMG: " + values[0].url);
                         }.bind(this));
-                    this.requestHistory(this.openmct.time.bounds());
                 }.bind(this));
         };
 
+        /**
+         * Requests historical imagery data given a time bound.
+         * @param {object} an object containing time bounds
+         */
         ImageryController.prototype.requestHistory = function (bounds) {
+            // gets called 3 times on bound change?
             this.openmct.telemetry
                 .request(this.domainObject, bounds)
                 .then(function (values) {
+                    this.$scope.images = [];
                     values.forEach(function (datum) {
                         this.updateValues(datum);
                     }.bind(this));
@@ -118,7 +125,7 @@ define(
         // Update displayable values to reflect latest image telemetry
         ImageryController.prototype.updateValues = function (datum) {
             // Image history should be updated even if imagery is paused
-            datum.utc = this.timeFormat.format(datum);
+            datum.timestamp = this.timeFormat.format(datum);
             this.$scope.images.push(datum);
 
             if (this.isPaused) {
