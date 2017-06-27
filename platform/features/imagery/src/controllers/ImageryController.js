@@ -123,7 +123,8 @@ define(
         // Update displayable values to reflect latest image telemetry
         ImageryController.prototype.updateValues = function (datum) {
             // Image history should be updated even if imagery is paused
-            datum.displayableTime = this.timeFormat.format(datum);
+            datum.displayableDate = this.timeFormat.format(datum).split(' ')[0];
+            datum.displayableTime = this.timeFormat.format(datum).split(' ')[1];
             this.$scope.images.push(datum);
 
             if (this.isPaused) {
