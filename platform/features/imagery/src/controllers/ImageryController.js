@@ -70,6 +70,7 @@ define(
         ImageryController.prototype.subscribe = function (domainObject) {
             this.date = "";
             this.imageUrl = "";
+
             this.openmct.objects.get(domainObject.getId())
                 .then(function (object) {
                     this.domainObject = object;
@@ -85,22 +86,13 @@ define(
                         .getValueFormatter(metadata.valuesForHints(['image'])[0]);
                     this.unsubscribe = this.openmct.telemetry
                         .subscribe(this.domainObject, this.updateValues);
-                    this.openmct.telemetry
-                        .request(this.domainObject, {
-                            strategy: 'latest',
-                            size: 1
-                        })
-                        .then(function (values) {
-                            this.updateValues(values[0]);
-                        }.bind(this));
-                    this.requestHistory(this.openmct.time.bounds());
+                    //this.requestHistory(this.openmct.time.bounds()); // fails
+                    //this.requestLad(); // tests fail when this call comes after request
+                    this.requestHistory(this.openmct.time.bounds()); //passes tests...
+                    this.requestLad();
                 }.bind(this));
         };
 
-        /**
-         * Requests historical imagery data given a time bound.
-         * @param {object} an object containing time bounds
-         */
         ImageryController.prototype.requestHistory = function (bounds) {
             // gets called 3 times on bound change?
             this.openmct.telemetry
@@ -110,6 +102,18 @@ define(
                     values.forEach(function (datum) {
                         this.updateValues(datum);
                     }.bind(this));
+                }.bind(this));
+        };
+
+        ImageryController.prototype.requestLad = function () {
+            this.openmct.telemetry
+                .request(this.domainObject, {
+                    strategy: 'latest',
+                    size: 1
+                })
+                .then(function (values) {
+                    this.updateValues(values[0]);
+                    console.log("first: " + values[0].url)
                 }.bind(this));
         };
 
