@@ -62,7 +62,6 @@ define(
                 // Only request new historical data if bound change was
                 // not automatic
                 if (!tick) {
-                    this.$scope.images = [];
                     this.requestHistory(newBounds);
                 }
             }.bind(this));
@@ -94,7 +93,6 @@ define(
                         })
                         .then(function (values) {
                             this.updateValues(values[0]);
-                            console.log("LATEST IMG: " + values[0].url);
                         }.bind(this));
                 }.bind(this));
         };
@@ -125,7 +123,7 @@ define(
         // Update displayable values to reflect latest image telemetry
         ImageryController.prototype.updateValues = function (datum) {
             // Image history should be updated even if imagery is paused
-            datum.timestamp = this.timeFormat.format(datum);
+            datum.displayableTime = this.timeFormat.format(datum);
             this.$scope.images.push(datum);
 
             if (this.isPaused) {
