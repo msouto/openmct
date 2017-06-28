@@ -46,7 +46,12 @@ define(
                 brightness: 100,
                 contrast: 100
             };
-            this.$scope.images = [];
+            this.$scope.imageHistory = [];
+
+            this.lastBound = undefined;
+            // temporary workaround for multiple bounds events
+            // keeps track of most recent change to bounds to prevent multiple
+            // querries per bounds change
 
             this.subscribe = this.subscribe.bind(this);
             this.stopListening = this.stopListening.bind(this);
@@ -61,8 +66,17 @@ define(
             openmct.time.on('bounds', function callback(newBounds, tick) {
                 // Only request new historical data if bound change was
                 // not automatic
-                if (!tick) {
-                    this.requestHistory(newBounds);
+                // Checks to make sure only one querry is made per bound change
+
+                // I think another instance of this block resolves before lastBound
+                // is set, resulting in multiple requests
+                if (!tick && !this.equalBounds(this.lastBound, newBounds)) {
+                    //console.log('UNIQUE BOUND CHANGE');
+                    this.lastBound = newBounds;
+                    this.requestHistory(newBounds)
+                        .then(function () {
+                            this.requestLad();
+                        }.bind(this));
                 }
             }.bind(this));
         }
@@ -86,23 +100,28 @@ define(
                         .getValueFormatter(metadata.valuesForHints(['image'])[0]);
                     this.unsubscribe = this.openmct.telemetry
                         .subscribe(this.domainObject, this.updateValues);
-                    //this.requestHistory(this.openmct.time.bounds()); // fails
-                    //this.requestLad(); // tests fail when this call comes after request
-                    this.requestHistory(this.openmct.time.bounds()); //passes tests...
-                    this.requestLad();
+                    // this.requestLad();
+                    // when this is called before requestHistory, passes all tests
+                    this.requestHistory(this.openmct.time.bounds())
+                        .then(function (result) {
+                            this.requestLad();
+                        }.bind(this));
                 }.bind(this));
         };
 
         ImageryController.prototype.requestHistory = function (bounds) {
-            // gets called 3 times on bound change?
             this.openmct.telemetry
                 .request(this.domainObject, bounds)
                 .then(function (values) {
-                    this.$scope.images = [];
+                    this.$scope.imageHistory = [];
                     values.forEach(function (datum) {
                         this.updateValues(datum);
                     }.bind(this));
                 }.bind(this));
+            return Promise.resolve();
+            // Is this an inappropriate use of a Promise because it doesn't return
+            // any relevant data? Implemented this so I could wait until historical
+            // querry resolves before requesting LAD
         };
 
         ImageryController.prototype.requestLad = function () {
@@ -113,7 +132,6 @@ define(
                 })
                 .then(function (values) {
                     this.updateValues(values[0]);
-                    console.log("first: " + values[0].url)
                 }.bind(this));
         };
 
@@ -124,12 +142,30 @@ define(
             }
         };
 
+        // Given two bound objects, returns true if they describe the same time
+        // period
+        ImageryController.prototype.equalBounds = function (oldBound, newBound) {
+            if (!oldBound || oldBound.start !== newBound.start ||
+                oldBound.end !== newBound.end) {
+                return false;
+            }
+            return true;
+        };
+
         // Update displayable values to reflect latest image telemetry
         ImageryController.prototype.updateValues = function (datum) {
-            // Image history should be updated even if imagery is paused
+            // Image history updated even if imagery is paused (?)
+            // Likely not necessary, because history is requested on view change
             datum.displayableDate = this.timeFormat.format(datum).split(' ')[0];
             datum.displayableTime = this.timeFormat.format(datum).split(' ')[1];
-            this.$scope.images.push(datum);
+            if (!this.$scope.imageHistory.length ||
+                this.$scope.imageHistory.slice(-1)[0].utc !== datum.utc) {
+                this.$scope.imageHistory.push(datum);
+            }
+            // THIS NEEDS TO BE TESTED (ensures that on bound change /
+            // view change the most resent datum is not added twice)
+            // could prove unecessary but with current LAD implementation
+            // fixes doubling issue
 
             if (this.isPaused) {
                 this.nextDatum = datum;
