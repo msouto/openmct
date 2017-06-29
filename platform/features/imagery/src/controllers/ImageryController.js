@@ -41,50 +41,33 @@ define(
             this.time = "";
             this.zone = "";
             this.imageUrl = "";
+            this.lastBound = undefined;
+            // Temporary workaround for multiple bounds events,
+            // keeps track of most recent change to bounds to prevent multiple
+            // querries per individual bounds change
 
+            this.$scope.imageHistory = [];
             this.$scope.filters = {
                 brightness: 100,
                 contrast: 100
             };
-            this.$scope.imageHistory = [];
-
-            this.lastBound = undefined;
-            // temporary workaround for multiple bounds events
-            // keeps track of most recent change to bounds to prevent multiple
-            // querries per bounds change
 
             this.subscribe = this.subscribe.bind(this);
             this.stopListening = this.stopListening.bind(this);
             this.updateValues = this.updateValues.bind(this);
+            this.onBoundsChange = this.onBoundsChange.bind(this);
 
             // Subscribe to telemetry when a domain object becomes available
             this.subscribe(this.$scope.domainObject);
 
             // Unsubscribe when the plot is destroyed
             this.$scope.$on("$destroy", this.stopListening);
-
-            openmct.time.on('bounds', function callback(newBounds, tick) {
-                // Only request new historical data if bound change was
-                // not automatic
-                // Checks to make sure only one querry is made per bound change
-
-                // I think another instance of this block resolves before lastBound
-                // is set, resulting in multiple requests
-                if (!tick && !this.equalBounds(this.lastBound, newBounds)) {
-                    //console.log('UNIQUE BOUND CHANGE');
-                    this.lastBound = newBounds;
-                    this.requestHistory(newBounds)
-                        .then(function () {
-                            this.requestLad();
-                        }.bind(this));
-                }
-            }.bind(this));
+            this.openmct.time.on('bounds', this.onBoundsChange);
         }
 
         ImageryController.prototype.subscribe = function (domainObject) {
             this.date = "";
             this.imageUrl = "";
-
             this.openmct.objects.get(domainObject.getId())
                 .then(function (object) {
                     this.domainObject = object;
@@ -100,8 +83,6 @@ define(
                         .getValueFormatter(metadata.valuesForHints(['image'])[0]);
                     this.unsubscribe = this.openmct.telemetry
                         .subscribe(this.domainObject, this.updateValues);
-                    // this.requestLad();
-                    // when this is called before requestHistory, passes all tests
                     this.requestHistory(this.openmct.time.bounds())
                         .then(function (result) {
                             this.requestLad();
@@ -121,7 +102,8 @@ define(
             return Promise.resolve();
             // Is this an inappropriate use of a Promise because it doesn't return
             // any relevant data? Implemented this so I could wait until historical
-            // querry resolves before requesting LAD
+            // querry resolves before requesting LAD but curious if there's a cleaner
+            // solution
         };
 
         ImageryController.prototype.requestLad = function () {
@@ -140,12 +122,27 @@ define(
                 this.unsubscribe();
                 delete this.unsubscribe;
             }
+            this.openmct.time.off('bounds', this.onBoundsChange);
+        };
+
+        ImageryController.prototype.onBoundsChange = function (newBounds, tick) {
+            // Only request new historical data if bound change was
+            // not automatic (i.e. !tick)
+            // Checks to make sure only one querry is made per bound change
+
+            if (!tick && !this.equalBounds(this.lastBound, newBounds)) {
+                this.lastBound = newBounds;
+                this.requestHistory(newBounds)
+                    .then(function () {
+                        this.requestLad();
+                    }.bind(this));
+            }
         };
 
         // Given two bound objects, returns true if they describe the same time
         // period
         ImageryController.prototype.equalBounds = function (oldBound, newBound) {
-            if (!oldBound || oldBound.start !== newBound.start ||
+            if (!oldBound || !newBound || oldBound.start !== newBound.start ||
                 oldBound.end !== newBound.end) {
                 return false;
             }
@@ -154,10 +151,15 @@ define(
 
         // Update displayable values to reflect latest image telemetry
         ImageryController.prototype.updateValues = function (datum) {
-            // Image history updated even if imagery is paused (?)
-            // Likely not necessary, because history is requested on view change
-            datum.displayableDate = this.timeFormat.format(datum).split(' ')[0];
-            datum.displayableTime = this.timeFormat.format(datum).split(' ')[1];
+            if (this.isPaused) {
+                this.nextDatum = datum;
+                return;
+            }
+
+            datum.displayableDate =
+                this.timeFormat.format(datum).split(' ')[0];
+            datum.displayableTime =
+                this.timeFormat.format(datum).split(' ')[1];
             if (!this.$scope.imageHistory.length ||
                 this.$scope.imageHistory.slice(-1)[0].utc !== datum.utc) {
                 this.$scope.imageHistory.push(datum);
@@ -167,10 +169,6 @@ define(
             // could prove unecessary but with current LAD implementation
             // fixes doubling issue
 
-            if (this.isPaused) {
-                this.nextDatum = datum;
-                return;
-            }
             this.time = this.timeFormat.format(datum);
             this.imageUrl = this.imageFormat.format(datum);
         };
