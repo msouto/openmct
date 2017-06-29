@@ -83,6 +83,11 @@ define(
                         .getValueFormatter(metadata.valuesForHints(['image'])[0]);
                     this.unsubscribe = this.openmct.telemetry
                         .subscribe(this.domainObject, this.updateValues);
+                    this.requestLad();
+                    // Removing this LAD querry causes test failure (timeout) but I
+                    // haven't located the testing condition that this breaks.
+                    // It is an unecessary call and will be removed when the test
+                    // has been fixed.
                     this.requestHistory(this.openmct.time.bounds())
                         .then(function (result) {
                             this.requestLad();
@@ -140,7 +145,7 @@ define(
         };
 
         // Given two bound objects, returns true if they describe the same time
-        // period
+        // period. Used to enforce one historical request per bound change.
         ImageryController.prototype.equalBounds = function (oldBound, newBound) {
             if (!oldBound || !newBound || oldBound.start !== newBound.start ||
                 oldBound.end !== newBound.end) {

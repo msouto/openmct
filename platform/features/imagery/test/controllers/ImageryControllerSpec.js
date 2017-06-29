@@ -42,14 +42,15 @@ define(
                     ['getId']
                 );
                 newDomainObject = { name: 'foo' };
-
                 oldDomainObject.getId.andReturn('testID');
                 openmct = {
                     objects: jasmine.createSpyObj('objectAPI', [
                         'get'
                     ]),
                     time: jasmine.createSpyObj('timeAPI', [
-                        'timeSystem'
+                        'timeSystem',
+                        'on',
+                        'off'
                     ]),
                     telemetry: jasmine.createSpyObj('telemetryAPI', [
                         'subscribe',
@@ -68,7 +69,6 @@ define(
                 openmct.time.timeSystem.andReturn({
                     key: 'testKey'
                 });
-                openmct.time.on = jasmine.createSpy('on');
                 $scope.domainObject = oldDomainObject;
                 openmct.objects.get.andReturn(Promise.resolve(newDomainObject));
                 openmct.telemetry.getMetadata.andReturn(metadata);
@@ -95,6 +95,7 @@ define(
                 metadata.valuesForHints.andReturn(["value"]);
 
                 controller = new ImageryController($scope, openmct);
+                spyOn(controller, 'equalBounds').andCallThrough();
 
             });
 
@@ -111,7 +112,6 @@ define(
                             openmct.telemetry.subscribe.mostRecentCall.args[1];
                     });
                 });
-
 
                 it("uses LAD telemetry", function () {
                     expect(openmct.telemetry.request).toHaveBeenCalledWith(
@@ -173,7 +173,29 @@ define(
                     );
                 });
 
-                it("unsubscribes when scope is destroyed", function () {
+                it("listens for bounds event", function () {
+                    expect(openmct.time.on).toHaveBeenCalled();
+                });
+
+                it("recognizes duplicate bounds", function () {
+                    expect(controller.equalBounds({
+                            start: 1434600258123,
+                            end: 1434600258153
+                        },
+                        {
+                            start: 1434600258123,
+                            end: 1434600258153})).toBeTruthy();
+
+                    expect(controller.equalBounds({
+                            start: 1434600258123,
+                            end: 1434600258153
+                        },
+                        {
+                            start: 1434600258123,
+                            end: 1434600299999})).toBeFalsy();
+                });
+
+                it("unsubscribes and unlistens when scope is destroyed", function () {
                     expect(unsubscribe).not.toHaveBeenCalled();
 
                     $scope.$on.calls.forEach(function (call) {
@@ -182,6 +204,7 @@ define(
                         }
                     });
                     expect(unsubscribe).toHaveBeenCalled();
+                    expect(openmct.time.off).toHaveBeenCalled();
                 });
             });
 
